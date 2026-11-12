@@ -53,6 +53,65 @@ jobs:
         working-directory: extracted
         run: npx cap add android
 
+      - name: Configurar ícone do DoseCerta
+        working-directory: extracted
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          mkdir -p android/app/src/main/res/values
+
+          cat > android/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+
+              <group
+                  android:rotation="-42"
+                  android:pivotX="54"
+                  android:pivotY="54">
+
+                  <path
+                      android:fillColor="#00000000"
+                      android:strokeColor="#A6FF00"
+                      android:strokeWidth="5"
+                      android:strokeLineCap="round"
+                      android:strokeLineJoin="round"
+                      android:pathData="M54,25 C46.3,25 40,31.3 40,39 L40,69 C40,76.7 46.3,83 54,83 C61.7,83 68,76.7 68,69 L68,39 C68,31.3 61.7,25 54,25 Z" />
+
+                  <path
+                      android:fillColor="#00000000"
+                      android:strokeColor="#A6FF00"
+                      android:strokeWidth="5"
+                      android:strokeLineCap="round"
+                      android:pathData="M40,54 L68,54" />
+
+              </group>
+          </vector>
+          EOF
+
+          cat > android/app/src/main/res/values/ic_launcher_background.xml <<'EOF'
+          <resources>
+              <color name="ic_launcher_background">#050505</color>
+          </resources>
+          EOF
+
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF'
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+
       - name: Configurar permissão de alarmes exatos
         working-directory: extracted
         run: |
