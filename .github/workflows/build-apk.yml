@@ -52,7 +52,7 @@ jobs:
       - name: Criar projeto Android
         working-directory: extracted
         run: npx cap add android
-
+        
       - name: Configurar ícone do DoseCerta
         working-directory: extracted
         run: |
@@ -60,36 +60,76 @@ jobs:
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26
           mkdir -p android/app/src/main/res/values
 
-          cat > android/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
+          python3 -m pip install pillow
 
-              <group
-                  android:rotation="-42"
-                  android:pivotX="54"
-                  android:pivotY="54">
+          cat > /tmp/create_icon.py <<'PY'
+          from PIL import Image, ImageDraw
+          from pathlib import Path
+          import math
 
-                  <path
-                      android:fillColor="#00000000"
-                      android:strokeColor="#A6FF00"
-                      android:strokeWidth="5"
-                      android:strokeLineCap="round"
-                      android:strokeLineJoin="round"
-                      android:pathData="M54,25 C46.3,25 40,31.3 40,39 L40,69 C40,76.7 46.3,83 54,83 C61.7,83 68,76.7 68,69 L68,39 C68,31.3 61.7,25 54,25 Z" />
+          sizes = {
+              "mdpi": 48,
+              "hdpi": 72,
+              "xhdpi": 96,
+              "xxhdpi": 144,
+              "xxxhdpi": 192
+          }
 
-                  <path
-                      android:fillColor="#00000000"
-                      android:strokeColor="#A6FF00"
-                      android:strokeWidth="5"
-                      android:strokeLineCap="round"
-                      android:pathData="M40,54 L68,54" />
+          root = Path("android/app/src/main/res")
+          green = "#A6FF00"
+          black = "#050505"
 
-              </group>
-          </vector>
-          EOF
+          for density, size in sizes.items():
+              img = Image.new("RGBA", (size, size), black)
+              draw = ImageDraw.Draw(img)
+
+              scale = size / 108
+              cx, cy = 54 * scale, 54 * scale
+              angle = math.radians(-42)
+
+              def point(x, y):
+                  dx = (x - 54) * scale
+                  dy = (y - 54) * scale
+                  return (
+                      cx + dx * math.cos(angle) - dy * math.sin(angle),
+                      cy + dx * math.sin(angle) + dy * math.cos(angle)
+                  )
+
+              points = [
+                  point(54, 25),
+                  point(40, 25),
+                  point(40, 83),
+                  point(54, 83),
+                  point(68, 83),
+                  point(68, 25)
+              ]
+
+              width = max(2, round(5 * scale))
+              draw.line(
+                  [point(54, 25), point(40, 39), point(40, 69),
+                   point(54, 83), point(68, 69), point(68, 39),
+                   point(54, 25)],
+                  fill=green,
+                  width=width,
+                  joint="curve"
+              )
+
+              draw.line(
+                  [point(40, 54), point(68, 54)],
+                  fill=green,
+                  width=width
+              )
+
+              path = root / f"mipmap-{density}" / "ic_launcher.png"
+              path.parent.mkdir(parents=True, exist_ok=True)
+              img.save(path)
+
+              round_path = path.parent / "ic_launcher_round.png"
+              img.save(round_path)
+
+          PY
+
+          python3 /tmp/create_icon.py
 
           cat > android/app/src/main/res/values/ic_launcher_background.xml <<'EOF'
           <resources>
@@ -100,18 +140,31 @@ jobs:
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+              <foreground android:drawable="@mipmap/ic_launcher"/>
           </adaptive-icon>
           EOF
 
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF'
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+              <foreground android:drawable="@mipmap/ic_launcher_round"/>
           </adaptive-icon>
           EOF
 
+          python3 - <<'PY'
+          from pathlib import Path
 
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
+
+          content = content.replace(
+              'android:icon="@mipmap/ic_launcher"',
+              'android:icon="@mipmap/ic_launcher"'
+          )
+
+          manifest.write_text(content)
+          PY
+          
       - name: Configurar permissão de alarmes exatos
         working-directory: extracted
         run: |
