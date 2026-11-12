@@ -1,0 +1,69 @@
+
+name: Build DoseCerta APK
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto
+        run: |
+          unzip -q DoseCerta-primeira-versao.zip -d extracted
+
+      - name: Conferir estrutura
+        run: |
+          ls -la extracted
+          test -f extracted/package.json
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar dependências
+        working-directory: extracted
+        run: npm install
+
+      - name: Gerar versão web
+        working-directory: extracted
+        run: npm run build
+
+      - name: Criar projeto Android
+        working-directory: extracted
+        run: npx cap add android
+
+      - name: Sincronizar Capacitor
+        working-directory: extracted
+        run: npx cap sync android
+
+      - name: Compilar APK
+        working-directory: extracted/android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoseCerta-debug-apk
+          path: extracted/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+          
