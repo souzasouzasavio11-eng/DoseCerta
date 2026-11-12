@@ -53,6 +53,25 @@ jobs:
         working-directory: extracted
         run: npx cap add android
 
+      - name: Configurar permissão de alarmes exatos
+        working-directory: extracted
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
+
+          permission = '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />'
+
+          if permission not in content:
+              marker = '<application'
+              if marker not in content:
+                  raise SystemExit("Tag application não encontrada")
+              content = content.replace(marker, permission + '\n    ' + marker, 1)
+              manifest.write_text(content)
+          PY
+
       - name: Sincronizar Capacitor
         working-directory: extracted
         run: npx cap sync android
