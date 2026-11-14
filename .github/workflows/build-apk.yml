@@ -88,83 +88,130 @@ jobs:
               angle = math.radians(-42)
 
               def point(x, y):
-                  dx = (x - 54) * scale
-                  dy = (y - 54) * scale
-                  return (
-                      cx + dx * math.cos(angle) - dy * math.sin(angle),
-                      cy + dx * math.sin(angle) + dy * math.cos(angle)
-                  )
 
-              points = [
-                  point(54, 25),
-                  point(40, 25),
-                  point(40, 83),
-                  point(54, 83),
-                  point(68, 83),
-                  point(68, 25)
-              ]
+      - name: Configurar ícone do DoseCerta
+        working-directory: extracted
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          mkdir -p android/app/src/main/res/values
 
-              width = max(2, round(5 * scale))
-              draw.line(
-                  [point(54, 25), point(40, 39), point(40, 69),
-                   point(54, 83), point(68, 69), point(68, 39),
-                   point(54, 25)],
-                  fill=green,
-                  width=width,
-                  joint="curve"
-              )
+          python3 -m pip install pillow
 
-              draw.line(
-                  [point(40, 54), point(68, 54)],
-                  fill=green,
-                  width=width
-              )
+          cat > android/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
 
-              path = root / f"mipmap-{density}" / "ic_launcher.png"
-              path.parent.mkdir(parents=True, exist_ok=True)
-              img.save(path)
+              <group
+                  android:rotation="-42"
+                  android:pivotX="54"
+                  android:pivotY="54">
 
-              round_path = path.parent / "ic_launcher_round.png"
-              img.save(round_path)
+                  <path
+                      android:pathData="M54,25 C45.16,25 38,32.16 38,41 L38,67 C38,75.84 45.16,83 54,83 C62.84,83 70,75.84 70,67 L70,41 C70,32.16 62.84,25 54,25 Z"
+                      android:fillColor="#00000000"
+                      android:strokeColor="#A6FF00"
+                      android:strokeWidth="4"
+                      android:strokeLineCap="round"
+                      android:strokeLineJoin="round"/>
 
-          PY
+                  <path
+                      android:pathData="M38,54 L70,54"
+                      android:strokeColor="#A6FF00"
+                      android:strokeWidth="4"
+                      android:strokeLineCap="round"/>
 
-          python3 /tmp/create_icon.py
+              </group>
+          </vector>
+          EOF
 
           cat > android/app/src/main/res/values/ic_launcher_background.xml <<'EOF'
           <resources>
-              <color name="ic_launcher_background">#050505</color>
+              <color name="ic_launcher_background">#000000</color>
           </resources>
           EOF
 
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@mipmap/ic_launcher"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
           </adaptive-icon>
           EOF
 
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF'
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@mipmap/ic_launcher_round"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
           </adaptive-icon>
           EOF
 
-          python3 - <<'PY'
+          cat > /tmp/create_icon.py <<'PY'
+          from PIL import Image, ImageDraw
           from pathlib import Path
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          content = manifest.read_text()
+          sizes = {
+              "mdpi": 48,
+              "hdpi": 72,
+              "xhdpi": 96,
+              "xxhdpi": 144,
+              "xxxhdpi": 192
+          }
 
-          content = content.replace(
-              'android:icon="@mipmap/ic_launcher"',
-              'android:icon="@mipmap/ic_launcher"'
-          )
+          root = Path("android/app/src/main/res")
+          scale_factor = 4
 
-          manifest.write_text(content)
+          for density, size in sizes.items():
+              s = size * scale_factor
+              scale = s / 108
+
+              background = Image.new("RGBA", (s, s), "#000000")
+              symbol = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+              draw = ImageDraw.Draw(symbol)
+
+              box = (
+                  38 * scale,
+                  25 * scale,
+                  70 * scale,
+                  83 * scale
+              )
+
+              draw.rounded_rectangle(
+                  box,
+                  radius=16 * scale,
+                  outline="#A6FF00",
+                  width=max(1, round(4 * scale))
+              )
+
+              draw.line(
+                  (38 * scale, 54 * scale, 70 * scale, 54 * scale),
+                  fill="#A6FF00",
+                  width=max(1, round(4 * scale))
+              )
+
+              symbol = symbol.rotate(
+                  -42,
+                  resample=Image.Resampling.BICUBIC,
+                  center=(54 * scale, 54 * scale)
+              )
+
+              background.alpha_composite(symbol)
+              background = background.resize(
+                  (size, size),
+                  Image.Resampling.LANCZOS
+              )
+
+              folder = root / f"mipmap-{density}"
+              folder.mkdir(parents=True, exist_ok=True)
+
+              background.save(folder / "ic_launcher.png")
+              background.save(folder / "ic_launcher_round.png")
           PY
-          
+
+          python3 /tmp/create_icon.py
+
       - name: Configurar permissão de alarmes exatos
         working-directory: extracted
         run: |
