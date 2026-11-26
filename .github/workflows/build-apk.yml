@@ -82,7 +82,7 @@ jobs:
                   print(f"Importação JSArray adicionada em: {p}")
           PY
 
-      - name: Configurar ícones e recursos do Android
+      - name: Configurar ícones e recursos do Android (Cápsula Verde Neon)
         working-directory: extracted
         run: |
           mkdir -p android/app/src/main/res/drawable
@@ -220,10 +220,6 @@ jobs:
               content = content.replace('<application', '<application android:roundIcon="@mipmap/ic_launcher_round"')
           else:
               content = re.sub(r'android:roundIcon="[^"]*"', 'android:roundIcon="@mipmap/ic_launcher_round"', content)
-
-          permission = '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />'
-          if 'SCHEDULE_EXACT_ALARM' not in content:
-              content = content.replace('<application', permission + '\n    <application', 1)
 
           manifest.write_text(content)
           PY
