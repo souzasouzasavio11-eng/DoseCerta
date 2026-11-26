@@ -66,14 +66,17 @@ jobs:
         working-directory: extracted
         run: |
           python3 - <<'PY'
+          import re
           from pathlib import Path
-          
+
           for p in Path('.').rglob('DoseAlarmPlugin.java'):
               content = p.read_text()
               if 'import com.getcapacitor.JSArray;' not in content:
-                  content = content.replace(
-                      'package com.dosecerta.app;',
-                      'package com.dosecerta.app;\n\nimport com.getcapacitor.JSArray;'
+                  content = re.sub(
+                      r'(package\s+[\w\.]+;)',
+                      r'\1\n\nimport com.getcapacitor.JSArray;',
+                      content,
+                      count=1
                   )
                   p.write_text(content)
                   print(f"Importação JSArray adicionada em: {p}")
