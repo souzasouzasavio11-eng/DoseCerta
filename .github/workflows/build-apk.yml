@@ -1,3 +1,4 @@
+
 name: Build DoseCerta APK
 
 on:
@@ -16,8 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extrair projeto
-        run: |
-          unzip -q DoseCerta.zip -d extracted
+        run: unzip -q DoseCerta.zip -d extracted
 
       - name: Conferir estrutura
         run: |
@@ -41,6 +41,7 @@ jobs:
           accept-android-sdk-licenses: 'true'
           log-accepted-android-sdk-licenses: 'false'
           packages: 'platform-tools'
+
       - name: Instalar dependências
         working-directory: extracted
         run: npm install
@@ -56,42 +57,30 @@ jobs:
       - name: Configurar camada nativa do alarme persistente
         working-directory: extracted
         run: bash scripts/setup-android-alarm.sh
-        
-      - name: Configurar ícone do DoseCerta
+
+      - name: Configurar permissão de alarmes exatos
         working-directory: extracted
         run: |
-          mkdir -p android/app/src/main/res/drawable
-          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
-          mkdir -p android/app/src/main/res/values
-
-          python3 -m pip install pillow
-
-          cat > /tmp/create_icon.py <<'PY'
-          from PIL import Image, ImageDraw
+          python3 - <<'PY'
           from pathlib import Path
-          import math
 
-          sizes = {
-              "mdpi": 48,
-              "hdpi": 72,
-              "xhdpi": 96,
-              "xxhdpi": 144,
-              "xxxhdpi": 192
-          }
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
 
-          root = Path("android/app/src/main/res")
-          green = "#A6FF00"
-          black = "#050505"
+          permission = '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />'
 
-          for density, size in sizes.items():
-              img = Image.new("RGBA", (size, size), black)
-              draw = ImageDraw.Draw(img)
+          if permission not in content:
+              content = content.replace(
+                  '<application',
+                  permission + '\n    <application',
+                  1
+              )
+              manifest.write_text(content)
+          PY
 
-              scale = size / 108
-              cx, cy = 54 * scale, 54 * scale
-              angle = math.radians(-42)
-
-              def point(x, y):
+      - name: Sincronizar Capacitor
+        working-directory: extracted
+        run: npx cap sync android
 
       - name: Configurar ícone do DoseCerta
         working-directory: extracted
@@ -127,7 +116,6 @@ jobs:
                       android:strokeColor="#A6FF00"
                       android:strokeWidth="4"
                       android:strokeLineCap="round"/>
-
               </group>
           </vector>
           EOF
@@ -216,28 +204,30 @@ jobs:
 
           python3 /tmp/create_icon.py
 
-      - name: Configurar permissão de alarmes exatos
-        working-directory: extracted
-        run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           content = manifest.read_text()
 
-          permission = '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />'
+          match = re.search(r'<application\b[^>]*>', content, re.S)
+          if not match:
+              raise SystemExit("Tag application não encontrada no Manifest.")
 
-          if permission not in content:
-              marker = '<application'
-              if marker not in content:
-                  raise SystemExit("Tag application não encontrada")
-              content = content.replace(marker, permission + '\n    ' + marker, 1)
-              manifest.write_text(content)
+          tag = match.group(0)
+
+          for attribute in ("icon", "roundIcon"):
+              tag = re.sub(
+                  rf'\s+android:{attribute}="[^"]*"',
+                  '',
+                  tag
+              )
+              tag = tag[:-1] + f' android:{attribute}="@mipmap/ic_launcher{("_round" if attribute == "roundIcon" else "")}">'
+
+          content = content[:match.start()] + tag + content[match.end():]
+          manifest.write_text(content)
           PY
-
-      - name: Sincronizar Capacitor
-        working-directory: extracted
-        run: npx cap sync android
 
       - name: Compilar APK
         working-directory: extracted/android
@@ -250,4 +240,3 @@ jobs:
           path: extracted/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-          
