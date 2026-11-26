@@ -52,6 +52,10 @@ jobs:
       - name: Criar projeto Android
         working-directory: extracted
         run: npx cap add android
+
+      - name: Configurar camada nativa do alarme persistente
+        working-directory: extracted
+        run: bash scripts/setup-android-alarm.sh
         
       - name: Configurar ícone do DoseCerta
         working-directory: extracted
