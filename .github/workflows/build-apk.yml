@@ -58,6 +58,36 @@ jobs:
         working-directory: extracted
         run: bash scripts/setup-android-alarm.sh
 
+      - name: Corrigir importação JSArray
+        working-directory: extracted
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = list(Path("android/app/src/main/java").rglob("DoseAlarmPlugin.java"))
+
+          if not files:
+              raise SystemExit("DoseAlarmPlugin.java não encontrado")
+
+          file = files[0]
+          content = file.read_text()
+          import_line = "import com.getcapacitor.JSArray;"
+
+          if import_line not in content:
+              lines = content.splitlines()
+              for i, line in enumerate(lines):
+                  if line.startswith("package "):
+                      lines.insert(i + 1, "")
+                      lines.insert(i + 2, import_line)
+                      break
+              else:
+                  raise SystemExit("Declaração package não encontrada")
+
+              file.write_text("\n".join(lines) + "\n")
+
+          print("Importação JSArray corrigida!")
+          PY
+          
       - name: Configurar permissão de alarmes exatos
         working-directory: extracted
         run: |
